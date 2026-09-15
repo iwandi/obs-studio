@@ -822,21 +822,6 @@
             ]
         },
         {
-            "name": "Meridix Live Sports Platform",
-            "servers": [
-                {
-                    "name": "Primary",
-                    "url": "rtmp://publish.meridix.com/live"
-                }
-            ],
-            "recommended": {
-                "max video bitrate": 3500
-            },
-            "supported video codecs": [
-                "h264"
-            ]
-        },
-        {
             "name": "SOOP",
             "alt_names": [
                 "AfreecaTV",
