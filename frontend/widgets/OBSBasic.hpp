@@ -47,6 +47,7 @@
 extern volatile bool recording_paused;
 
 class ColorSelect;
+class Multiview;
 class OBSAbout;
 class OBSBasicAdvAudio;
 class OBSBasicFilters;
@@ -327,6 +328,7 @@ protected:
 	virtual void closeEvent(QCloseEvent *event) override;
 	virtual bool nativeEvent(const QByteArray &eventType, void *message, qintptr *result) override;
 	virtual void changeEvent(QEvent *event) override;
+	virtual bool eventFilter(QObject *obj, QEvent *event) override;
 
 signals:
 	void mainWindowClosed();
@@ -452,7 +454,23 @@ private:
 	QPointer<OBSDock> controlsDock;
 	QPointer<OBSDock> mixerDock;
 
+	/* Preview/Program/Studio-transition/Multiview are hosted in docks
+	 * rather than a fixed central widget. */
+	QPointer<OBSDock> previewDock;
+	QPointer<OBSDock> programDock;
+	QPointer<OBSDock> studioTransitionDock;
+	QPointer<OBSDock> multiviewDock;
+	QPointer<OBSQTDisplay> multiviewDisplay;
+	Multiview *multiview = nullptr;
+	/* Guards the shared Multiview against concurrent Update()/Render()
+	 * between the Qt thread and the graphics thread. */
+	bool multiviewDockUpdating = false;
+
+	void CreateMultiviewDock();
+
 public:
+	void UpdateMultiviewDock();
+
 	void AddDockWidget(QDockWidget *dock, Qt::DockWidgetArea area, bool extraBrowser = false);
 	void RemoveDockWidget(const QString &name);
 	bool IsDockObjectNameUsed(const QString &name);
@@ -1444,6 +1462,7 @@ private:
 	void SetPreviewProgramMode(bool enabled);
 	void ResizeProgram(uint32_t cx, uint32_t cy);
 	static void RenderProgram(void *data, uint32_t cx, uint32_t cy);
+	static void RenderMultiviewDock(void *data, uint32_t cx, uint32_t cy);
 
 	void UpdatePreviewProgramIndicators();
 

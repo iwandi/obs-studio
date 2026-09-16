@@ -46,6 +46,8 @@
 #endif
 #include <widgets/AudioMixer.hpp>
 #include <widgets/OBSProjector.hpp>
+#include <widgets/OBSQTDisplay.hpp>
+#include <components/Multiview.hpp>
 
 #include <OBSStudioAPI.hpp>
 #ifdef BROWSER_AVAILABLE
@@ -57,6 +59,7 @@
 #include <qt-wrappers.hpp>
 
 #include <QActionGroup>
+#include <QMouseEvent>
 #include <QThread>
 #include <QWidgetAction>
 
@@ -355,13 +358,49 @@ OBSBasic::OBSBasic(QWidget *parent) : OBSMainWindow(parent), undo_s(ui), ui(new 
 	/* Main window default layout */
 	setDockCornersVertical(true);
 
+	/* Move the former central preview area into a dock so that preview,
+	 * program, the studio-mode transition strip and the multiview can all
+	 * be rearranged as ordinary docks. The main window keeps a zero-size
+	 * central widget so the dock areas fill the entire window. */
+	QWidget *previewArea = takeCentralWidget();
+	previewDock = new OBSDock(this);
+	previewDock->setObjectName(QStringLiteral("previewDock"));
+	previewDock->setWindowTitle(QTStr("Basic.Dock.Preview"));
+	previewDock->setWidget(previewArea);
+
+	/* No central widget: with dock nesting enabled the dock areas fill the
+	 * whole window and share stretch space in both directions. A zero-size
+	 * dummy central widget would instead starve the docks of horizontal
+	 * stretch (the central widget is normally the stretch sink). */
+	setDockNestingEnabled(true);
+
+	/* Program display + studio-mode transition strip docks. They are
+	 * populated and shown when studio mode is toggled on (see
+	 * SetPreviewProgramMode) and hidden otherwise. */
+	programDock = new OBSDock(this);
+	programDock->setObjectName(QStringLiteral("programDock"));
+	programDock->setWindowTitle(QTStr("Basic.Dock.Program"));
+
+	studioTransitionDock = new OBSDock(this);
+	studioTransitionDock->setObjectName(QStringLiteral("studioTransitionDock"));
+	studioTransitionDock->setWindowTitle(QTStr("Basic.Dock.StudioTransition"));
+
 	/* Scenes and Sources dock on left
 	 * This specific arrangement can't be set up in Qt Designer */
 	addDockWidget(Qt::LeftDockWidgetArea, ui->scenesDock);
 	splitDockWidget(ui->scenesDock, ui->sourcesDock, Qt::Vertical);
 	int sideDockWidth = std::min(width() * 30 / 100, 320);
 	resizeDocks({ui->scenesDock, ui->sourcesDock}, {sideDockWidth, sideDockWidth}, Qt::Horizontal);
+
+	addDockWidget(Qt::RightDockWidgetArea, previewDock);
+	splitDockWidget(previewDock, programDock, Qt::Horizontal);
+	addDockWidget(Qt::BottomDockWidgetArea, studioTransitionDock);
 	addDockWidget(Qt::BottomDockWidgetArea, controlsDock);
+
+	CreateMultiviewDock();
+
+	programDock->setVisible(false);
+	studioTransitionDock->setVisible(false);
 
 	startingDockLayout = saveState();
 
@@ -529,6 +568,10 @@ OBSBasic::OBSBasic(QWidget *parent) : OBSMainWindow(parent), undo_s(ui), ui(new 
 	ui->menuDocks->addAction(dock->toggleViewAction()); \
 	dock->setVisible(false);
 
+	SETUP_DOCK(previewDock);
+	SETUP_DOCK(programDock);
+	SETUP_DOCK(studioTransitionDock);
+	SETUP_DOCK(multiviewDock);
 	SETUP_DOCK(ui->scenesDock);
 	SETUP_DOCK(ui->sourcesDock);
 	SETUP_DOCK(ui->mixerDock);
@@ -986,6 +1029,104 @@ static inline void LogEncoders()
 	list_encoders(OBS_ENCODER_VIDEO);
 	blog(LOG_INFO, "  Audio Encoders:");
 	list_encoders(OBS_ENCODER_AUDIO);
+}
+
+void OBSBasic::RenderMultiviewDock(void *data, uint32_t cx, uint32_t cy)
+{
+	OBSBasic *window = static_cast<OBSBasic *>(data);
+	if (window->multiview && !window->multiviewDockUpdating) {
+		window->multiview->Render(cx, cy);
+	}
+}
+
+void OBSBasic::UpdateMultiviewDock()
+{
+	if (!multiview) {
+		return;
+	}
+
+	MultiviewLayout multiviewLayout =
+		static_cast<MultiviewLayout>(config_get_int(App()->GetUserConfig(), "BasicWindow", "MultiviewLayout"));
+	bool drawLabel = config_get_bool(App()->GetUserConfig(), "BasicWindow", "MultiviewDrawNames");
+	bool drawSafeArea = config_get_bool(App()->GetUserConfig(), "BasicWindow", "MultiviewDrawAreas");
+
+	/* Block the graphics-thread render callback while the shared Multiview
+	 * is being reconfigured. obs_enter_graphics() serialises with the
+	 * render, so the flag flips are seen atomically w.r.t. rendering. */
+	obs_enter_graphics();
+	multiviewDockUpdating = true;
+	obs_leave_graphics();
+
+	multiview->Update(multiviewLayout, drawLabel, drawSafeArea);
+
+	obs_enter_graphics();
+	multiviewDockUpdating = false;
+	obs_leave_graphics();
+}
+
+void OBSBasic::CreateMultiviewDock()
+{
+	multiviewDock = new OBSDock(this);
+	multiviewDock->setObjectName(QStringLiteral("multiviewDock"));
+	multiviewDock->setWindowTitle(QTStr("Basic.Dock.Multiview"));
+
+	multiviewDisplay = new OBSQTDisplay(multiviewDock);
+	multiviewDisplay->setMinimumSize(QSize(160, 90));
+	multiviewDisplay->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+	/* Handle click-to-switch / double-click-to-transition on the tiles. */
+	multiviewDisplay->installEventFilter(this);
+
+	multiview = new Multiview();
+
+	auto addDrawCallback = [this]() {
+		/* (Re)compute the multiview layout now that the display exists
+		 * and video is running, then register the render callback. */
+		UpdateMultiviewDock();
+		obs_display_add_draw_callback(multiviewDisplay->GetDisplay(), OBSBasic::RenderMultiviewDock, this);
+		obs_display_set_background_color(multiviewDisplay->GetDisplay(), 0x000000);
+	};
+	connect(multiviewDisplay.data(), &OBSQTDisplay::DisplayCreated, this, addDrawCallback);
+
+	multiviewDock->setWidget(multiviewDisplay);
+
+	addDockWidget(Qt::RightDockWidgetArea, multiviewDock);
+	multiviewDock->setVisible(false);
+}
+
+bool OBSBasic::eventFilter(QObject *obj, QEvent *event)
+{
+	/* Click handling for the embedded multiview dock, mirroring the
+	 * multiview projector: left click switches the (preview) scene when
+	 * mouse-switching is enabled; double click transitions to program in
+	 * studio mode. */
+	if (obj == multiviewDisplay && multiview) {
+		const QEvent::Type type = event->type();
+
+		if (type == QEvent::MouseButtonPress) {
+			QMouseEvent *me = static_cast<QMouseEvent *>(event);
+			if (me->button() == Qt::LeftButton &&
+			    config_get_bool(App()->GetUserConfig(), "BasicWindow", "MultiviewMouseSwitch")) {
+				QPoint pos = me->pos();
+				OBSSource src = multiview->GetSourceByPosition(pos.x(), pos.y(), multiviewDisplay->width(),
+									      multiviewDisplay->height());
+				if (src && GetCurrentSceneSource() != src) {
+					SetCurrentScene(src, false);
+				}
+			}
+		} else if (type == QEvent::MouseButtonDblClick) {
+			QMouseEvent *me = static_cast<QMouseEvent *>(event);
+			if (me->button() == Qt::LeftButton && IsPreviewProgramMode()) {
+				QPoint pos = me->pos();
+				OBSSource src = multiview->GetSourceByPosition(pos.x(), pos.y(), multiviewDisplay->width(),
+									      multiviewDisplay->height());
+				if (src && GetProgramSource() != src) {
+					TransitionToScene(src);
+				}
+			}
+		}
+	}
+
+	return QMainWindow::eventFilter(obj, event);
 }
 
 void OBSBasic::OBSInit()
@@ -1474,6 +1615,14 @@ void OBSBasic::applicationShutdown() noexcept
 	delete remux;
 
 	obs_display_remove_draw_callback(ui->preview->GetDisplay(), OBSBasic::RenderMain, this);
+
+	if (multiviewDisplay) {
+		obs_display_remove_draw_callback(multiviewDisplay->GetDisplay(), OBSBasic::RenderMultiviewDock, this);
+	}
+	if (multiview) {
+		delete multiview;
+		multiview = nullptr;
+	}
 
 	obs_enter_graphics();
 	gs_vertexbuffer_destroy(box);

@@ -23,7 +23,10 @@ public:
 	~Multiview();
 	void Update(MultiviewLayout multiviewLayout, bool drawLabel, bool drawSafeArea);
 	void Render(uint32_t cx, uint32_t cy);
-	OBSSource GetSourceByPosition(int x, int y);
+	/* cx/cy are the pixel dimensions of the widget the multiview is drawn
+	 * into (the projector window or the multiview dock display), used to
+	 * map a click position back to a source tile. */
+	OBSSource GetSourceByPosition(int x, int y, int cx, int cy);
 
 private:
 	bool drawLabel, drawSafeArea;

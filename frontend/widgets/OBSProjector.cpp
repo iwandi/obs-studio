@@ -251,7 +251,7 @@ void OBSProjector::mouseDoubleClickEvent(QMouseEvent *event)
 
 	if (event->button() == Qt::LeftButton) {
 		QPoint pos = event->pos();
-		OBSSource src = multiview->GetSourceByPosition(pos.x(), pos.y());
+		OBSSource src = multiview->GetSourceByPosition(pos.x(), pos.y(), width(), height());
 		if (!src) {
 			return;
 		}
@@ -301,7 +301,7 @@ void OBSProjector::mousePressEvent(QMouseEvent *event)
 		}
 
 		QPoint pos = event->pos();
-		OBSSource src = multiview->GetSourceByPosition(pos.x(), pos.y());
+		OBSSource src = multiview->GetSourceByPosition(pos.x(), pos.y(), width(), height());
 		if (!src) {
 			return;
 		}
@@ -385,6 +385,12 @@ void OBSProjector::UpdateMultiviewProjectors()
 
 	for (auto &projector : multiviewProjectors) {
 		projector->UpdateMultiview();
+	}
+
+	/* Keep the embedded multiview dock in sync with the same layout/label/
+	 * scene-list changes that drive the multiview projectors. */
+	if (OBSBasic *main = OBSBasic::Get()) {
+		main->UpdateMultiviewDock();
 	}
 
 	obs_enter_graphics();

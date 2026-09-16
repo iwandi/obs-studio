@@ -254,16 +254,18 @@ void OBSBasic::SetPreviewProgramMode(bool enabled)
 
 		programWidget->setLayout(programLayout);
 
-		ui->previewLayout->addWidget(programWidget);
+		/* Program display and the transition strip each live in their own
+		 * dock, shown only while studio mode is active. */
+		programDock->setWidget(programWidget);
+		programDock->setVisible(true);
 
-		/* Place the transition strip as a full-width horizontal element
-		 * directly below the preview/program display row (above the
-		 * context toolbar), independent of the preview layout's
-		 * landscape/portrait direction. */
-		int transitionStripIndex = ui->verticalLayout->indexOf(ui->canvasEditor) + 1;
-		ui->verticalLayout->insertWidget(transitionStripIndex, programOptions);
+		studioTransitionDock->setWidget(programOptions);
+		studioTransitionDock->setVisible(true);
 
-		sizeObserver = new PreviewProgramSizeObserver(ui->preview, program, this);
+		/* No PreviewProgramSizeObserver here: it constrains the preview
+		 * and program to matching sizes for the old side-by-side central
+		 * layout. Now that they are independent docks, each sizes itself
+		 * freely (the observer would otherwise cap their width). */
 
 		OnEvent(OBS_FRONTEND_EVENT_STUDIO_MODE_ENABLED);
 
@@ -279,11 +281,17 @@ void OBSBasic::SetPreviewProgramMode(bool enabled)
 		}
 		TransitionToScene(actualProgramScene, true);
 
+		/* Hide the studio-only docks and tear down their contents. */
+		programDock->setVisible(false);
+		studioTransitionDock->setVisible(false);
+
 		delete programOptions;
 		delete program;
 		delete programLabel;
 		delete programWidget;
-		sizeObserver->deleteLater();
+		if (sizeObserver) {
+			sizeObserver->deleteLater();
+		}
 
 		if (lastScene) {
 			OBSSource actualLastScene = OBSGetStrongRef(lastScene);

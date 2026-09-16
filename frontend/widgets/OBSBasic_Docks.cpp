@@ -87,6 +87,8 @@ void OBSBasic::on_resetDocks_triggered(bool force)
 	ui->mixerDock->setVisible(true);
 	ui->transitionsDock->setVisible(true);
 	controlsDock->setVisible(true);
+	if (previewDock)
+		previewDock->setVisible(true);
 	statsDock->setVisible(false);
 	statsDock->setFloating(true);
 

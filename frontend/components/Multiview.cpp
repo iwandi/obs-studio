@@ -556,15 +556,12 @@ void Multiview::Render(uint32_t cx, uint32_t cy)
 	endRegion();
 }
 
-OBSSource Multiview::GetSourceByPosition(int x, int y)
+OBSSource Multiview::GetSourceByPosition(int x, int y, int cx, int cy)
 {
 	int pos = -1;
-	QWidget *rec = QApplication::activeWindow();
-	if (!rec) {
+	if (cx <= 0 || cy <= 0) {
 		return nullptr;
 	}
-	int cx = rec->width();
-	int cy = rec->height();
 	int minX = 0;
 	int minY = 0;
 	int maxX = cx;
