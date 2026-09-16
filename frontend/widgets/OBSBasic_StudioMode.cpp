@@ -66,8 +66,13 @@ void OBSBasic::CreateProgramDisplay()
 void OBSBasic::CreateProgramOptions()
 {
 	programOptions = new QWidget();
-	QVBoxLayout *layout = new QVBoxLayout();
-	layout->setSpacing(4);
+	/* Lay the transition controls out as a single horizontal strip that
+	 * sits at the bottom of the studio-mode display area, spanning the
+	 * full width, rather than as a vertical block wedged between the
+	 * preview and program displays. */
+	QHBoxLayout *layout = new QHBoxLayout();
+	layout->setContentsMargins(4, 4, 4, 4);
+	layout->setSpacing(8);
 
 	QPushButton *configTransitions = new QPushButton();
 	configTransitions->setProperty("class", "icon-dots-vert");
@@ -76,7 +81,6 @@ void OBSBasic::CreateProgramOptions()
 	mainButtonLayout->setSpacing(2);
 
 	transitionButton = new QPushButton(QTStr("Transition"));
-	transitionButton->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
 
 	QHBoxLayout *quickTransitionsLayout = new QHBoxLayout();
 	quickTransitionsLayout->setSpacing(2);
@@ -85,7 +89,6 @@ void OBSBasic::CreateProgramOptions()
 	addQuickTransition->setProperty("class", "icon-plus");
 
 	QLabel *quickTransitionsLabel = new QLabel(QTStr("QuickTransitions"));
-	quickTransitionsLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
 
 	quickTransitionsLayout->addWidget(quickTransitionsLabel);
 	quickTransitionsLayout->addWidget(addQuickTransition);
@@ -96,19 +99,34 @@ void OBSBasic::CreateProgramOptions()
 	tBar = new SliderIgnoreClick(Qt::Horizontal);
 	tBar->setMinimum(0);
 	tBar->setMaximum(T_BAR_PRECISION - 1);
+	/* Keep the T-bar a sensible fixed-ish length instead of letting it
+	 * stretch across the whole horizontal strip. */
+	tBar->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
+	tBar->setMinimumWidth(240);
+	tBar->setMaximumWidth(320);
 
 	tBar->setProperty("class", "slider-tbar");
 
 	connect(tBar, &QSlider::valueChanged, this, &OBSBasic::TBarChanged);
 	connect(tBar, &QSlider::sliderReleased, this, &OBSBasic::TBarReleased);
 
-	layout->addStretch(0);
+	/* Order matters: quick-transition buttons are inserted by
+	 * AddQuickTransitionId() right after quickTransitionsLayout (index 2),
+	 * and the T-bar stays last, expanding to fill the remaining width. */
+	/* Stretches on both sides center the transition controls within the
+	 * full-width bottom strip. Quick-transition buttons are inserted by
+	 * AddQuickTransitionId() after the leading stretch (0), mainButtonLayout
+	 * (1) and quickTransitionsLayout (2), i.e. starting at index 3. */
+	layout->addStretch(1);
 	layout->addLayout(mainButtonLayout);
 	layout->addLayout(quickTransitionsLayout);
 	layout->addWidget(tBar);
-	layout->addStretch(0);
+	layout->addStretch(1);
 
 	programOptions->setLayout(layout);
+	/* Keep the strip as short as its contents so it does not steal
+	 * vertical space from the preview/program displays above it. */
+	programOptions->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Maximum);
 
 	auto onAdd = [this]() {
 		QScopedPointer<QMenu> menu(CreateTransitionMenu(this, nullptr));
@@ -236,9 +254,14 @@ void OBSBasic::SetPreviewProgramMode(bool enabled)
 
 		programWidget->setLayout(programLayout);
 
-		ui->previewLayout->addWidget(programOptions);
 		ui->previewLayout->addWidget(programWidget);
-		ui->previewLayout->setAlignment(programOptions, Qt::AlignCenter);
+
+		/* Place the transition strip as a full-width horizontal element
+		 * directly below the preview/program display row (above the
+		 * context toolbar), independent of the preview layout's
+		 * landscape/portrait direction. */
+		int transitionStripIndex = ui->verticalLayout->indexOf(ui->canvasEditor) + 1;
+		ui->verticalLayout->insertWidget(transitionStripIndex, programOptions);
 
 		sizeObserver = new PreviewProgramSizeObserver(ui->preview, program, this);
 

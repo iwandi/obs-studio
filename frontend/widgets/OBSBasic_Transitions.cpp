@@ -1208,8 +1208,12 @@ void OBSBasic::AddQuickTransitionId(int id)
 	button->setMenu(buttonMenu);
 	connect(button, &QAbstractButton::clicked, this, &OBSBasic::QuickTransitionClicked);
 
-	QVBoxLayout *programLayout = reinterpret_cast<QVBoxLayout *>(programOptions->layout());
+	QBoxLayout *programLayout = reinterpret_cast<QBoxLayout *>(programOptions->layout());
 
+	/* Quick-transition buttons live in the main horizontal strip after the
+	 * leading stretch (0), mainButtonLayout (1) and quickTransitionsLayout
+	 * (2); insert after any already-present quick-transition buttons and
+	 * before the T-bar. */
 	int idx = 3;
 	for (;; idx++) {
 		QLayoutItem *item = programLayout->itemAt(idx);
@@ -1264,7 +1268,7 @@ void OBSBasic::ClearQuickTransitions()
 		return;
 	}
 
-	QVBoxLayout *programLayout = reinterpret_cast<QVBoxLayout *>(programOptions->layout());
+	QBoxLayout *programLayout = reinterpret_cast<QBoxLayout *>(programOptions->layout());
 
 	for (int idx = 0;; idx++) {
 		QLayoutItem *item = programLayout->itemAt(idx);
@@ -1351,7 +1355,7 @@ void OBSBasic::ClearQuickTransitionWidgets()
 		return;
 	}
 
-	QVBoxLayout *programLayout = reinterpret_cast<QVBoxLayout *>(programOptions->layout());
+	QBoxLayout *programLayout = reinterpret_cast<QBoxLayout *>(programOptions->layout());
 
 	for (int idx = 0;; idx++) {
 		QLayoutItem *item = programLayout->itemAt(idx);
@@ -1398,7 +1402,7 @@ void OBSBasic::EnableTransitionWidgets(bool enable)
 		return;
 	}
 
-	QVBoxLayout *programLayout = reinterpret_cast<QVBoxLayout *>(programOptions->layout());
+	QBoxLayout *programLayout = reinterpret_cast<QBoxLayout *>(programOptions->layout());
 
 	for (int idx = 0;; idx++) {
 		QLayoutItem *item = programLayout->itemAt(idx);
