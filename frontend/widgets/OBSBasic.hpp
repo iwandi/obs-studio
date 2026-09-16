@@ -463,6 +463,7 @@ private slots:
 	void on_resetDocks_triggered(bool force = false);
 	void on_lockDocks_toggled(bool lock);
 	void on_sideDocks_toggled(bool side);
+	void on_actionReloadDocks_triggered();
 
 	void RepairCustomExtraDockName();
 
@@ -913,6 +914,7 @@ private:
 	void RefreshProfiles(bool refreshCache = false);
 
 	void ActivateProfile(const OBSProfile &profile, bool reset = false);
+	void ReloadCurrentProfile();
 	void UpdateProfileEncoders();
 	std::vector<std::string> GetRestartRequirements(const ConfigFile &config) const;
 	void ResetProfileData();
@@ -933,6 +935,7 @@ private slots:
 	void on_actionRemoveProfile_triggered(bool skipConfirmation = false);
 	void on_actionImportProfile_triggered();
 	void on_actionExportProfile_triggered();
+	void on_actionReloadProfile_triggered();
 
 public slots:
 	bool CreateNewProfile(const QString &name);
@@ -1106,6 +1109,7 @@ private:
 
 	void RefreshSceneCollections(bool refreshCache = false);
 	void ActivateSceneCollection(SceneCollection &collection);
+	void ReloadCurrentSceneCollection(bool keepCurrentScene);
 
 public slots:
 	void DeferSaveBegin();
@@ -1126,6 +1130,11 @@ private slots:
 	void on_actionImportSceneCollection_triggered();
 	void on_actionExportSceneCollection_triggered();
 	void on_actionRemigrateSceneCollection_triggered();
+
+	void on_actionReloadSceneCollectionList_triggered();
+	void on_actionReloadAllScenes_triggered();
+	void on_actionReloadCurrentScene_triggered();
+	void on_actionSceneReload_triggered();
 
 public:
 	inline bool SavingDisabled() const { return disableSaving; }

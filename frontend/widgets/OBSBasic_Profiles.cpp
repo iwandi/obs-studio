@@ -733,6 +733,66 @@ void OBSBasic::ActivateProfile(const OBSProfile &profile, bool reset)
 	}
 }
 
+void OBSBasic::ReloadCurrentProfile()
+{
+	OBSProfile profile;
+	try {
+		profile = GetCurrentProfile();
+	} catch (const std::invalid_argument &error) {
+		blog(LOG_WARNING, "Reload profile: %s", error.what());
+		return;
+	}
+
+	ConfigFile config;
+	if (config.Open(profile.profileFile.u8string().c_str(), CONFIG_OPEN_EXISTING) != CONFIG_SUCCESS) {
+		blog(LOG_WARNING, "Reload profile: failed to open config on disk: %s",
+		     profile.profileFile.u8string().c_str());
+		return;
+	}
+
+	config_set_string(config, "General", "Name", profile.name.c_str());
+
+	/* Determine which changes would require a restart before we swap the
+	 * freshly-read-from-disk config in. */
+	std::vector<std::string> restartRequirements = GetRestartRequirements(config);
+
+	/* Swap in the on-disk config WITHOUT saving the current in-memory
+	 * configuration first, so any unsaved changes are discarded in favour
+	 * of the file on disk. */
+	activeConfiguration.Swap(config);
+
+	InitBasicConfigDefaults();
+	UpdateProfileEncoders();
+	ResetProfileData();
+
+	RefreshProfiles();
+	UpdateTitleBar();
+	emit profileSettingChanged("Audio", "MeterDecayRate");
+
+	OnEvent(OBS_FRONTEND_EVENT_PROFILE_CHANGED);
+
+	blog(LOG_INFO, "Reloaded profile '%s' from disk", profile.name.c_str());
+
+	if (!restartRequirements.empty()) {
+		std::string requirements = std::accumulate(
+			std::next(restartRequirements.begin()), restartRequirements.end(), restartRequirements[0],
+			[](std::string a, std::string b) { return std::move(a) + "\n" + b; });
+
+		QMessageBox::StandardButton button = OBSMessageBox::question(
+			this, QTStr("Restart"), QTStr("LoadProfileNeedsRestart").arg(requirements.c_str()));
+
+		if (button == QMessageBox::Yes) {
+			restart = true;
+			close();
+		}
+	}
+}
+
+void OBSBasic::on_actionReloadProfile_triggered()
+{
+	ReloadCurrentProfile();
+}
+
 void OBSBasic::UpdateProfileEncoders()
 {
 	InitBasicConfigDefaults2();

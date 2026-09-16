@@ -882,17 +882,29 @@
     <addaction name="actionImportProfile"/>
     <addaction name="actionExportProfile"/>
     <addaction name="separator"/>
+    <addaction name="actionReloadProfile"/>
+    <addaction name="separator"/>
    </widget>
    <widget class="QMenu" name="sceneCollectionMenu">
     <property name="title">
      <string>Basic.MainMenu.SceneCollection</string>
     </property>
+    <widget class="QMenu" name="sceneCollectionReloadMenu">
+     <property name="title">
+      <string>Basic.MainMenu.SceneCollection.Reload</string>
+     </property>
+     <addaction name="actionReloadSceneCollectionList"/>
+     <addaction name="actionReloadAllScenes"/>
+     <addaction name="actionReloadCurrentScene"/>
+    </widget>
     <addaction name="actionNewSceneCollection"/>
     <addaction name="actionDupSceneCollection"/>
     <addaction name="actionRenameSceneCollection"/>
     <addaction name="actionRemoveSceneCollection"/>
     <addaction name="actionImportSceneCollection"/>
     <addaction name="actionExportSceneCollection"/>
+    <addaction name="separator"/>
+    <addaction name="sceneCollectionReloadMenu"/>
     <addaction name="separator"/>
     <addaction name="actionShowMissingFiles"/>
     <addaction name="actionRemigrateSceneCollection"/>
@@ -958,6 +970,7 @@
     <addaction name="lockDocks"/>
     <addaction name="sideDocks"/>
     <addaction name="resetDocks"/>
+    <addaction name="actionReloadDocks"/>
     <addaction name="separator"/>
    </widget>
    <addaction name="menu_File"/>
@@ -1072,6 +1085,7 @@
           <addaction name="actionRemoveScene"/>
           <addaction name="separator"/>
           <addaction name="actionSceneFilters"/>
+          <addaction name="actionSceneReload"/>
           <addaction name="separator"/>
           <addaction name="actionSceneUp"/>
           <addaction name="actionSceneDown"/>
@@ -1201,6 +1215,7 @@
           <addaction name="actionRemoveSource"/>
           <addaction name="separator"/>
           <addaction name="actionSourceProperties"/>
+          <addaction name="actionSceneReload"/>
           <addaction name="separator"/>
           <addaction name="actionSourceUp"/>
           <addaction name="actionSourceDown"/>
@@ -2183,6 +2198,46 @@
    </property>
    <property name="class" stdset="0">
     <string>icon-filter</string>
+   </property>
+  </action>
+  <action name="actionSceneReload">
+   <property name="icon">
+    <iconset resource="obs.qrc">
+     <normaloff>:/res/images/refresh.svg</normaloff>:/res/images/refresh.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Basic.Scene.Reload</string>
+   </property>
+   <property name="toolTip">
+    <string>Basic.Scene.Reload</string>
+   </property>
+   <property name="class" stdset="0">
+    <string>icon-refresh</string>
+   </property>
+  </action>
+  <action name="actionReloadSceneCollectionList">
+   <property name="text">
+    <string>Basic.MainMenu.SceneCollection.Reload.Collections</string>
+   </property>
+  </action>
+  <action name="actionReloadAllScenes">
+   <property name="text">
+    <string>Basic.MainMenu.SceneCollection.Reload.AllScenes</string>
+   </property>
+  </action>
+  <action name="actionReloadCurrentScene">
+   <property name="text">
+    <string>Basic.MainMenu.SceneCollection.Reload.CurrentScene</string>
+   </property>
+  </action>
+  <action name="actionReloadProfile">
+   <property name="text">
+    <string>Basic.MainMenu.Profile.Reload</string>
+   </property>
+  </action>
+  <action name="actionReloadDocks">
+   <property name="text">
+    <string>Basic.MainMenu.Docks.Reload</string>
    </property>
   </action>
   <action name="actionSceneGridMode">

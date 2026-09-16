@@ -593,6 +593,7 @@ void OBSBasic::on_scenes_customContextMenuRequested(const QPoint &pos)
 		popup.addAction(QTStr("Screenshot.Scene"), this, &OBSBasic::ScreenshotScene);
 		popup.addSeparator();
 		popup.addAction(QTStr("Filters"), this, &OBSBasic::OpenSceneFilters);
+		popup.addAction(ui->actionSceneReload);
 
 		popup.addSeparator();
 

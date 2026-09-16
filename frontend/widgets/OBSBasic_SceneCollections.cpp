@@ -790,6 +790,79 @@ void OBSBasic::ActivateSceneCollection(SceneCollection &collection)
 	OnEvent(OBS_FRONTEND_EVENT_SCENE_COLLECTION_CHANGED);
 }
 
+void OBSBasic::ReloadCurrentSceneCollection(bool keepCurrentScene)
+{
+	const std::string currentCollectionName{
+		config_get_string(App()->GetUserConfig(), "Basic", "SceneCollection")};
+
+	auto foundCollection = GetSceneCollectionByName(currentCollectionName);
+
+	if (!foundCollection) {
+		blog(LOG_WARNING, "Reload: current scene collection '%s' not found in cache",
+		     currentCollectionName.c_str());
+		return;
+	}
+
+	SceneCollection &collection = foundCollection.value();
+
+	/* Remember the active scene so we can restore the user's selection
+	 * after the reload; the on-disk "current_scene" may differ from what
+	 * the user currently has selected. */
+	std::string previousScene;
+	if (keepCurrentScene) {
+		if (OBSSource curScene = GetCurrentSceneSource()) {
+			previousScene = obs_source_get_name(curScene);
+		}
+	}
+
+	OnEvent(OBS_FRONTEND_EVENT_SCENE_COLLECTION_CHANGING);
+
+	/* Reload straight from disk WITHOUT saving first, so any unsaved
+	 * in-memory changes are discarded in favour of the file on disk.
+	 * Load() clears the current scene data and re-reads the JSON. */
+	Load(collection);
+
+	RefreshSceneCollections();
+	UpdateTitleBar();
+
+	if (keepCurrentScene && !previousScene.empty()) {
+		OBSSourceAutoRelease source = obs_get_source_by_name(previousScene.c_str());
+		obs_scene_t *scene = obs_scene_from_source(source);
+		if (scene) {
+			SetCurrentScene(scene, true);
+		}
+	}
+
+	OnEvent(OBS_FRONTEND_EVENT_SCENE_COLLECTION_LIST_CHANGED);
+	OnEvent(OBS_FRONTEND_EVENT_SCENE_COLLECTION_CHANGED);
+
+	blog(LOG_INFO, "Reloaded scene collection '%s' from disk (%s)", collection.getName().c_str(),
+	     collection.getFileName().c_str());
+	blog(LOG_INFO, "------------------------------------------------");
+}
+
+void OBSBasic::on_actionReloadSceneCollectionList_triggered()
+{
+	/* Rescan the scene-collection files on disk and rebuild the menu
+	 * list, picking up collections added or removed outside OBS. */
+	RefreshSceneCollections(true);
+}
+
+void OBSBasic::on_actionReloadAllScenes_triggered()
+{
+	ReloadCurrentSceneCollection(false);
+}
+
+void OBSBasic::on_actionReloadCurrentScene_triggered()
+{
+	ReloadCurrentSceneCollection(true);
+}
+
+void OBSBasic::on_actionSceneReload_triggered()
+{
+	ReloadCurrentSceneCollection(true);
+}
+
 // MARK: - OBSBasic Scene Collection Functions
 
 using namespace std;

@@ -140,6 +140,46 @@ void OBSBasic::on_sideDocks_toggled(bool side)
 	setDockCornersVertical(side);
 }
 
+void OBSBasic::on_actionReloadDocks_triggered()
+{
+	/* Re-read the dock layout straight from user.ini on disk (rather than
+	 * the in-memory config) so hand-edited or reverted layouts are picked
+	 * up without restarting. The values are also written back into the
+	 * in-memory config so a later save does not clobber them. */
+	const std::filesystem::path userConfigPath =
+		App()->userConfigLocation / std::filesystem::u8path("obs-studio/user.ini");
+
+	config_t *diskConfig = nullptr;
+	if (config_open(&diskConfig, userConfigPath.u8string().c_str(), CONFIG_OPEN_EXISTING) != CONFIG_SUCCESS) {
+		blog(LOG_WARNING, "Reload docks: failed to open user config on disk: %s",
+		     userConfigPath.u8string().c_str());
+		return;
+	}
+
+	const char *geometryStr = config_get_string(diskConfig, "BasicWindow", "geometry");
+	if (geometryStr && *geometryStr) {
+		restoreGeometry(QByteArray::fromBase64(QByteArray(geometryStr)));
+		config_set_string(App()->GetUserConfig(), "BasicWindow", "geometry", geometryStr);
+	}
+
+	const char *dockStateStr = config_get_string(diskConfig, "BasicWindow", "DockState");
+	if (!dockStateStr || !*dockStateStr) {
+		blog(LOG_INFO, "Reload docks: no saved dock state on disk, resetting to defaults");
+		on_resetDocks_triggered(true);
+	} else {
+		QByteArray dockState = QByteArray::fromBase64(QByteArray(dockStateStr));
+		if (!restoreState(dockState)) {
+			blog(LOG_WARNING, "Reload docks: saved dock state could not be applied, resetting");
+			on_resetDocks_triggered(true);
+		} else {
+			config_set_string(App()->GetUserConfig(), "BasicWindow", "DockState", dockStateStr);
+			blog(LOG_INFO, "Reloaded dock layout from disk");
+		}
+	}
+
+	config_close(diskConfig);
+}
+
 void OBSBasic::AddDockWidget(QDockWidget *dock, Qt::DockWidgetArea area, bool extraBrowser)
 {
 	if (dock->objectName().isEmpty()) {
